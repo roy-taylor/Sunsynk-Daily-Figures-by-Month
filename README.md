@@ -6,6 +6,7 @@ Files are:
   sunsynkGetMonthFigures.py - calls the routines and writes output to an Excel file
 
 Use
+
   python .\sunsynkGetMonthFigures.py --help
 
 For usage
