@@ -26,9 +26,13 @@ debugFlag = False
 #
 # #############################################################################
 
-loginEndpoint = ('https://pv.inteless.com/oauth/token')
-plantIdEndpoint = ('https://pv.inteless.com/api/v1/plants?page=1&limit=10&name=&status=')
-statsEndpoint = ('https://pv.inteless.com/api/v1/plant/energy/')
+# loginEndpoint = ('https://pv.inteless.com/oauth/token')
+# plantIdEndpoint = ('https://pv.inteless.com/api/v1/plants?page=1&limit=10&name=&status=')
+# statsEndpoint = ('https://pv.inteless.com/api/v1/plant/energy/')
+
+loginEndpoint = ('https://api.sunsynk.net/oauth/token')
+plantIdEndpoint = ('https://api.sunsynk.net/api/v1/plants?page=1&limit=10&name=&status=')
+statsEndpoint = ('https://api.sunsynk.net/api/v1/plant/energy/')
 
 # #############################################################################
 #
