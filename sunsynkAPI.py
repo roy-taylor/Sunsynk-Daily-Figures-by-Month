@@ -9,12 +9,14 @@
 # #############################################################################
 
 import sys
-import requests
+import urllib3
 import json
-from requests.auth import HTTPBasicAuth
+from datetime import date, datetime, timedelta 
 
 # not the proper way to do things, but set to True for debugging
 debugFlag = False
+verifyTLS = True
+http = urllib3.PoolManager()
 
 # #############################################################################
 #
@@ -36,28 +38,79 @@ statsEndpoint = ('https://api.sunsynk.net/api/v1/plant/energy/')
 
 # #############################################################################
 #
-# This function will print your bearer/access token
+# This function will fetch your bearer/access token, first looks for a 
+# cached token in a file, if not found or expired then gets a new token
+# 
+# Sunsync modified their authentication API so frequent calls would be rejected
+# so token is cached for reuse
 #
 # #############################################################################
 def getBearerToken(username, password):
-    headers = {
-    'Content-type':'application/json', 
-    'Accept':'application/json'
-    }
 
-    payload = {
-        "username": username,
-        "password": password,
-        "grant_type":"password",
-        "client_id":"csp-web"
+    # initialise variables, set expiry to the past in case cached value not found
+    bearerTokenString = ""
+    tokenExpiry = datetime.now() - timedelta(days=1)
+
+    # #########################################################################
+    # 
+    #   Open the cache file, and retrieve values.  The exception will catch any 
+    #   errors
+    #   
+    # #########################################################################
+    try:
+        with open('sunsyncApiToken.json', 'r') as openfile:
+            apiTokenLoad = json.load(openfile)
+            bearerTokenString = apiTokenLoad["bearerToken"]
+            tokenExpiryStr = apiTokenLoad["expiryDate"]
+            tokenExpiry = datetime.strptime(tokenExpiryStr, "%Y-%m-%d %H:%M:%S")
+    except:
+        if debugFlag:
+            print("Token file not found")
+            
+    # #########################################################################
+    # 
+    #   Return token if it has not expired, otherwise get a new token
+    #   
+    # #########################################################################
+    if tokenExpiry > datetime.now():
+        return bearerTokenString
+    else:
+        headers = {
+        'Content-type':'application/json', 
+        'Accept':'application/json'
         }
-    r = requests.post(loginEndpoint, json=payload, headers=headers).json()
-    # Your access token extracted from response
-    accessToken = r["data"]["access_token"]
-    bearerTokenString = ('Bearer '+ accessToken)
-    if debugFlag:
-        print('****************************************************')
-        print('Your access token is: ' + bearerTokenString)
+
+        payload = {
+            "username": username,
+            "password": password,
+            "grant_type":"password",
+            "client_id":"csp-web"
+            }
+        r = urllib3.request("POST", loginEndpoint, json=payload, headers=headers).json()
+        if debugFlag:
+            print('****************************************************')
+            print('Authentication Response: ')
+            print(r)
+
+        # Your access token extracted from response
+        accessToken = r["data"]["access_token"]
+        tokenExpiryPeriod = r["data"]["expires_in"]
+        bearerTokenString = ('Bearer '+ accessToken)
+        tokenExpiryDate = datetime.combine(date.today(), datetime.min.time()) + timedelta(seconds=tokenExpiryPeriod)
+        tokenExpiryDateStr = tokenExpiryDate.strftime("%Y-%m-%d %H:%M:%S")
+
+        # #########################################################################
+        # 
+        #   Save the token and expiry date to a cache file for the next run
+        #   
+        # #########################################################################
+        with open("sunsyncApiToken.json", "w") as outfile:
+            json.dump({'bearerToken': bearerTokenString, "expiryDate": tokenExpiryDateStr}, outfile)
+
+        if debugFlag:
+            print('****************************************************')
+            print('Your access token is: ' + bearerTokenString)
+            print("Your token expires in (secs)" + str(tokenExpiry))
     return bearerTokenString
 
 # #############################################################################
@@ -75,7 +128,10 @@ def getPlantId(bearerToken):
     if debugFlag:
         print ('Request endpoint:', plantIdEndpoint)
         print ('Headers: ', headers_and_token)
-    r = requests.get(plantIdEndpoint, headers=headers_and_token)
+#    r = requests.get(plantIdEndpoint, headers=headers_and_token)
+#    r = requests.get(plantIdEndpoint, headers=headers_and_token, verify=verifyTLS)
+
+    r = urllib3.request("GET", plantIdEndpoint, headers=headers_and_token)
     data_response = r.json()
     if debugFlag:
         print ('Response: ', json.dumps(data_response, indent = 4) )
@@ -110,7 +166,9 @@ def getMonthlyStats(bearerToken, plantId, month):
         print(url)
         print('https://pv.inteless.com/api/v1/plant/energy/99741/month?lan=en&date=2023-08&id=99741')
 
-    r = requests.get(url, headers=headers_and_token)
+#    r = requests.get(url, headers=headers_and_token)
+#    r = requests.get(url, headers=headers_and_token, verify=verifyTLS)
+    r = urllib3.request("GET", url, headers=headers_and_token)
     data_response = r.json()
     if debugFlag:
         print ('Response: ', json.dumps(data_response, indent = 4) )
